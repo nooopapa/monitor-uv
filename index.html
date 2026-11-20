@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Solar Valpo</title>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 20px; margin: 0; }
+        .card { background: #1e293b; border-radius: 16px; padding: 18px; margin-bottom: 14px; border: 1px solid #334155; }
+        h2 { color: #38bdf8; margin-top: 0; font-size: 1.2rem; }
+        .titulo { color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .dato { font-size: 1.1rem; margin: 6px 0; }
+        .uv-grande { font-size: 2.5rem; font-weight: bold; color: #fbbf24; }
+        button { width: 100%; padding: 14px; background: #0284c7; color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>☀️ MONITOR SOLAR - VALPARAÍSO</h2>
+    
+    <div class="card">
+        <div class="titulo">Índice UV</div>
+        <div class="uv-grande" id="uv-actual">--</div>
+        <div class="dato" id="uv-max">UV Máximo Hoy: --</div>
+        <div class="dato" id="riesgo">Nivel de Riesgo: Calculando...</div>
+    </div>
+
+    <div class="card">
+        <div class="titulo">Atmósfera</div>
+        <div class="dato" id="temp">Temperatura: --</div>
+        <div class="dato" id="hum">Humedad: --</div>
+        <div class="dato" id="nub">Nubosidad: --</div>
+    </div>
+
+    <div class="card">
+        <div class="titulo">Radiación Solar</div>
+        <div class="dato" id="rad-global">Radiación Global: --</div>
+        <div class="dato" id="rad-directa">Radiación Directa: --</div>
+        <div class="dato" id="rad-difusa">Radiación Difusa: --</div>
+    </div>
+
+    <div class="card">
+        <div class="titulo">Recomendación</div>
+        <div class="dato" id="rec">--</div>
+    </div>
+
+    <button onclick="cargarDatos()">🔄 Actualizar ahora</button>
+
+    <script>
+        async function cargarDatos() {
+            const url = "https://api.open-meteo.com/v1/forecast?latitude=-33.0472&longitude=-71.6127&current=temperature_2m,relative_humidity_2m,cloud_cover,uv_index,shortwave_radiation,direct_radiation,diffuse_radiation&daily=uv_index_max&timezone=America%2FSantiago";
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            const c = data.current;
+            const uv = c.uv_index;
+            const uvMax = data.daily.uv_index_max[0];
+
+            let riesgo = "BAJO";
+            let rec = "No se requiere protección especial.";
+            if (uv >= 3 && uv < 6) { riesgo = "MODERADO"; rec = "Usa gafas de sol y protector solar si estás al aire libre."; }
+            else if (uv >= 6 && uv < 8) { riesgo = "ALTO"; rec = "Se recomienda protección solar, gorro y evitar el sol al mediodía."; }
+            else if (uv >= 8 && uv < 11) { riesgo = "MUY ALTO"; rec = "Protección extra obligatoria. Busca sombra entre 11:00 y 16:00."; }
+            else if (uv >= 11) { riesgo = "EXTREMO"; rec = "Evita la exposición directa al sol."; }
+
+            document.getElementById("uv-actual").innerText = uv;
+            document.getElementById("uv-max").innerText = `UV Máximo Hoy: ${uvMax}`;
+            document.getElementById("riesgo").innerText = `Nivel de Riesgo: ${riesgo}`;
+            document.getElementById("temp").innerText = `Temperatura: ${c.temperature_2m} °C`;
+            document.getElementById("hum").innerText = `Humedad: ${c.relative_humidity_2m} %`;
+            document.getElementById("nub").innerText = `Nubosidad: ${c.cloud_cover} %`;
+            document.getElementById("rad-global").innerText = `Radiación Global: ${c.shortwave_radiation} W/m²`;
+            document.getElementById("rad-directa").innerText = `Radiación Directa: ${c.direct_radiation} W/m²`;
+            document.getElementById("rad-difusa").innerText = `Radiación Difusa: ${c.diffuse_radiation} W/m²`;
+            document.getElementById("rec").innerText = rec;
+        }
+        cargarDatos();
+    </script>
+</body>
+</html>
