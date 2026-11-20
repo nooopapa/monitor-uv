@@ -77,3 +77,165 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitor Solar - Valparaíso</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 16px; max-width: 480px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 18px; }
+    header h1 { font-size: 1.25rem; letter-spacing: 0.5px; color: var(--accent); }
+    header p { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+    .card-full { grid-column: span 2; display: flex; justify-content: space-between; align-items: center; }
+    .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+    .badge { padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; color: #0f172a; }
+
+    /* Pronóstico por hora */
+    .forecast-title { font-size: 0.9rem; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .hourly-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+    }
+    .hour-item {
+      min-width: 78px;
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 12px 8px;
+      text-align: center;
+      border: 1px solid #334155;
+      flex-shrink: 0;
+    }
+    .hour-time { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+    .hour-uv { font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
+    .hour-temp { font-size: 0.85rem; color: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MONITOR SOLAR · VALPARAÍSO</h1>
+    <p id="updated">Cargando datos en vivo...</p>
+  </header>
+
+  <div class="grid">
+    <div class="card card-full">
+      <div>
+        <div class="label">Índice UV Actual</div>
+        <div class="value" id="uv-now">--</div>
+      </div>
+      <span class="badge" id="uv-risk" style="background:#64748b;">--</span>
+    </div>
+
+    <div class="card">
+      <div class="label">Temperatura</div>
+      <div class="value" id="temp-now">-- °C</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Nubosidad</div>
+      <div class="value" id="clouds-now">-- %</div>
+    </div>
+
+    <div class="card card-full">
+      <div>
+        <div class="label">Radiación Solar Directa</div>
+        <div class="value" id="rad-now">-- W/m²</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="forecast-title">Pronóstico Hoy (Próximas 12 Horas)</div>
+    <div class="hourly-scroll" id="hourly-container">
+      <p style="color:var(--muted); font-size:0.85rem;">Cargando pronóstico...</p>
+    </div>
+  </div>
+
+  <script>
+    function getUvInfo(uv) {
+      if (uv < 3) return { text: 'Bajo', color: '#4ade80' };
+      if (uv < 6) return { text: 'Moderado', color: '#facc15' };
+      if (uv < 8) return { text: 'Alto', color: '#fb923c' };
+      if (uv < 11) return { text: 'Muy Alto', color: '#f87171' };
+      return { text: 'Extremo', color: '#c084fc' };
+    }
+
+    async function loadWeather() {
+      // Coordenadas Valparaíso: -33.0472, -71.6127
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=-33.0472&longitude=-71.6127&current=temperature_2m,cloud_cover,uv_index,direct_radiation&hourly=uv_index,temperature_2m&timezone=America%2FSantiago&forecast_hours=12';
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // Datos actuales
+        const uv = data.current.uv_index;
+        const info = getUvInfo(uv);
+        document.getElementById('uv-now').textContent = uv.toFixed(1);
+        document.getElementById('uv-now').style.color = info.color;
+
+        const badge = document.getElementById('uv-risk');
+        badge.textContent = info.text;
+        badge.style.background = info.color;
+
+        document.getElementById('temp-now').textContent = `${data.current.temperature_2m.toFixed(1)} °C`;
+        document.getElementById('clouds-now').textContent = `${data.current.cloud_cover} %`;
+        document.getElementById('rad-now').textContent = `${Math.round(data.current.direct_radiation)} W/m²`;
+
+        const horaActual = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('updated').textContent = `Actualizado: ${horaActual}`;
+
+        // Pronóstico hora por hora (próximas 12 horas)
+        const container = document.getElementById('hourly-container');
+        container.innerHTML = '';
+
+        data.hourly.time.forEach((timeStr, i) => {
+          const hourLabel = timeStr.split('T')[1]; // Extrae HH:MM
+          const hUv = data.hourly.uv_index[i];
+          const hTemp = data.hourly.temperature_2m[i];
+          const hInfo = getUvInfo(hUv);
+
+          const item = document.createElement('div');
+          item.className = 'hour-item';
+          item.innerHTML = `
+            <div class="hour-time">${hourLabel}</div>
+            <div class="hour-uv" style="color:${hInfo.color}">UV ${hUv.toFixed(1)}</div>
+            <div class="hour-temp">${Math.round(hTemp)}°C</div>
+          `;
+          container.appendChild(item);
+        });
+      } catch (err) {
+        document.getElementById('updated').textContent = 'Error al conectar con Open-Meteo';
+      }
+    }
+
+    loadWeather();
+  </script>
+</body>
+</html>
